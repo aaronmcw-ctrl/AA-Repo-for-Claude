@@ -579,7 +579,7 @@
     }
     const az = app.querySelector(".az");
     if (az) {
-      const jump = (L) => { const el = document.getElementById("az-" + L); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 70 }); };
+      const jump = (L) => { const el = document.getElementById("az-" + L); if (el) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 140 }); };
       az.addEventListener("click", (e) => { const b = e.target.closest("[data-az]"); if (b) jump(b.dataset.az); });
       // drag along the strip to scrub through letters
       az.addEventListener("touchmove", (e) => {

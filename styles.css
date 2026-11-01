@@ -469,3 +469,7 @@ a.chip { text-decoration: none; min-height: 36px; display: inline-flex; align-it
 /* fixes: keep rails aligned to the page gutter; keep Play above the fold on talk pages */
 .rail { scroll-padding-inline: var(--gut); }
 .single__art { width: min(62vw, 280px, 34vh); margin-bottom: 20px; }
+/* let fixed elements (A–Z strip) stay fixed once the page has slid in */
+.view { animation-fill-mode: backwards; }
+/* exact heights so A–Z jumps land on the right letter */
+.filter-group { content-visibility: visible; contain-intrinsic-size: none; }
