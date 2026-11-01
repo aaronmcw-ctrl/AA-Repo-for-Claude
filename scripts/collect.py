@@ -8,74 +8,32 @@ One-time collector: builds data.json from discipleshiplibrary.com's public JSON 
 It stores LINKS ONLY. Audio is never downloaded; the app streams each MP3 from
 its original https URL on discipleshiplibrary.com.
 
-Inputs:  scripts/config.json  (felt-need cards -> topics, picks; mentors)
-Outputs: data.json            (the only file the app reads)
-         curation.md          (human-readable list of picks to review)
-Python 3.8+, standard library only.
+Inputs:  scripts/config.json  (felt-need cards, mentors, summaries)
+Outputs: data.json            (what the home screen needs; small)
+         curation.md          (human-readable review list)
+The full browsable library (all topics / all speakers) is built by collect_library.py.
 """
-import json, os, re, sys, time, urllib.request, urllib.parse
+import json, os, re, sys
 from datetime import datetime, timezone
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CFG = json.load(open(os.path.join(ROOT, "scripts", "config.json")))
-BASE = CFG["base"].rstrip("/")
-CACHE = os.path.join(ROOT, "scripts", ".cache")
-FRESH = "--fresh" in sys.argv
-UA = "DiscipleshipAudioPrototype/1.0 (one-time catalog build, owner-permitted)"
-os.makedirs(CACHE, exist_ok=True)
-
-
-def api(path):
-    """GET BASE/api/<path> as JSON, politely, with an on-disk cache."""
-    key = re.sub(r"[^a-zA-Z0-9_.-]", "_", path) + ".json"
-    fp = os.path.join(CACHE, key)
-    if not FRESH and os.path.exists(fp):
-        return json.load(open(fp))
-    url = f"{BASE}/api/{path}"
-    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        data = json.load(r)
-    json.dump(data, open(fp, "w"))
-    time.sleep(0.6)  # be gentle with the server
-    print("  fetched", url)
-    return data
-
-
-def absurl(u):
-    if not u:
-        return None
-    full = urllib.parse.urljoin(BASE + "/", u)
-    if not full.startswith("https://"):
-        raise SystemExit(f"Refusing non-https URL: {full}")
-    return full
-
-
-def mp3(files):
-    for f in files or []:
-        if f.get("label", "").upper() == "MP3" or f.get("url", "").lower().endswith(".mp3"):
-            return absurl(f["url"])
-    return None
-
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lib import ROOT, CFG, BASE, api, absurl, mp3, talk_obj, series_order_key, write_json
 
 talks, speakers = {}, {}
-topic_names = {t["id"]: t["name"] for t in api("topics")}
+topic_list = api("topics")
+topic_names = {t["id"]: t["name"] for t in topic_list}
 speaker_names = {s["id"]: s["name"] for s in api("speakers")}
 
 
 def add_talk(m, speaker_id=None):
-    u = mp3(m.get("files"))
-    if not u:
+    o = talk_obj(m, speaker_id)
+    if not o:
         return None
-    sid = m.get("speakerId") or speaker_id
-    t = talks.setdefault(m["id"], {})
-    t.update({k: v for k, v in {
-        "t": m["title"].strip(),
-        "sp": sid,
-        "tp": m.get("topics") or t.get("tp") or [],
-        "se": m.get("series") or t.get("se"),
-        "so": m.get("seriesOrder") or t.get("so"),
-        "u": u,
-    }.items() if v not in (None, "")})
+    prev = talks.get(m["id"], {})
+    for k in ("se", "so"):  # topic feeds lack series info; keep it from speaker feeds
+        if k in prev and k not in o:
+            o[k] = prev[k]
+    talks[m["id"]] = o
+    sid = o["sp"]
     if sid and sid not in speakers:
         speakers[sid] = {"n": m.get("speaker") or speaker_names.get(sid, sid)}
     return m["id"]
@@ -84,60 +42,46 @@ def add_talk(m, speaker_id=None):
 # ---------- Mentors ----------
 print("Mentors…")
 mentors = []
-mentor_ids = [m["id"] for m in CFG["mentors"]]
 for cfg in CFG["mentors"]:
     d = api(f"speakers/{cfg['id']}")
     ids = [i for i in (add_talk(m, d["id"]) for m in d["messages"]) if i]
     bio = re.sub(r"\s+", " ", (d.get("bio") or "")).replace(" .", ".").strip()
-    first = re.split(r"(?<=[a-z0-9)])\.\s", bio)[0].rstrip(".") + "." if bio else ""
     speakers[d["id"]] = {"n": d["name"], "photo": absurl(d.get("photo")), "bio": bio,
-                         "line": cfg.get("line") or first}
-    # Queue order: each series in its own order (series A-Z), then standalone talks A-Z,
-    # then music recordings last (they are songs, not talks).
-    def qkey(i):
-        t = talks[i]
-        music = 1 if "Music" in t.get("tp", []) else 0
-        return (music, 0, t["se"].lower(), t.get("so") or 9999, t["t"].lower()) if t.get("se") \
-            else (music, 1, "", 0, t["t"].lower())
-    mentors.append({"id": d["id"], "queue": sorted(ids, key=qkey)})
+                         "line": cfg.get("line", ""), "about": cfg.get("about", ""),
+                         **({"aboutDraft": True} if cfg.get("aboutDraft") else {})}
+    mentors.append({"id": d["id"], "g": cfg.get("g", "m"),
+                    "queue": sorted(ids, key=lambda i: series_order_key(talks[i]))})
+
+# Featured row: drop anyone without a photo, then alternate men/women
+# (men and women each keep their config order; extra men go at the end).
+with_photo = [m for m in mentors if speakers[m["id"]].get("photo")]
+men = [m["id"] for m in with_photo if m["g"] != "f"]
+women = [m["id"] for m in with_photo if m["g"] == "f"]
+row = []
+while men or women:
+    if men: row.append(men.pop(0))
+    if women: row.append(women.pop(0))
+dropped = [m["id"] for m in mentors if not speakers[m["id"]].get("photo")]
+if dropped:
+    print("  (no photo, left out of featured row:", ", ".join(dropped) + ")")
 
 # ---------- Felt-need cards ----------
 print("Felt-need topics…")
-SKIP_TOPICS = {"Spanish Bible", "Thru the Bible Radio", "King James Bible", "Five Year Bible Study Series"}
 needs = []
 for n in CFG["needs"]:
-    cand = {}
     for tid in n["topics"]:
-        d = api(f"topics/{tid}")
-        for m in d["messages"]:
-            i = add_talk(m)
-            if i:
-                cand.setdefault(i, set()).add(tid)
-    if n.get("picks"):
-        picks = [p for p in n["picks"] if p in talks]
-    else:
-        # Auto-proposal: talks tagged with several of this card's topics, by mentors,
-        # one per speaker, skipping radio/foreign-language/Bible-reading series.
-        def score(i):
-            t = talks[i]
-            s = 3 * len(cand[i])
-            s += 2 if t.get("sp") in mentor_ids else 0
-            s -= 1 if re.search(r"part\s*\d|- \d|\bII\b", t["t"], re.I) else 0
-            return -s, t["t"]
-        picks, seen_sp, seen_title = [], set(), set()
-        for i in sorted(cand, key=score):
-            t = talks[i]
-            if SKIP_TOPICS & set(t.get("tp", [])) or t.get("sp") in seen_sp:
-                continue
-            key = t["t"].lower()
-            if key in seen_title:
-                continue
-            picks.append(i); seen_sp.add(t.get("sp")); seen_title.add(key)
-            if len(picks) == 8:
-                break
-    needs.append({"id": n["id"], "title": n["title"], "blurb": n["blurb"],
-                  "topics": [topic_names.get(t, t) for t in n["topics"]], "talks": picks,
-                  "_cand": sorted(cand, key=lambda i: -len(cand[i]))})
+        for m in api(f"topics/{tid}")["messages"]:
+            add_talk(m)
+    picks = [p for p in n.get("picks", []) if p in talks]
+    needs.append({"id": n["id"], "title": n["title"], "blurb": n["blurb"], "featured": bool(n.get("featured")),
+                  "topics": [{"id": t, "n": topic_names.get(t, t)} for t in n["topics"]], "talks": picks})
+
+# ---------- Summaries ----------
+for tid, s in CFG.get("summaries", {}).items():
+    if tid in talks:
+        talks[tid]["sm"] = s["s"]
+        if s.get("draft"):
+            talks[tid]["smd"] = 1
 
 # ---------- Daily Discipleship (LeRoy Eims) ----------
 print("Daily Discipleship…")
@@ -149,40 +93,46 @@ for m in api("daily")["messages"]:
         title = re.sub(r"^Daily Discipleship:\s*", "", m["title"]).strip()
         eps[num.group(1)] = {"t": title, "se": re.sub(r"\s*-\s*\d+\s*/.*$|\s*-\s*\d+$", "", m.get("series") or ""), "u": u}
 
-# ---------- Keep only talks the app actually uses ----------
+# ---------- Keep only talks the app uses on load ----------
 used = {i for n in needs for i in n["talks"]} | {i for m in mentors for i in m["queue"]}
 out = {
     "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
     "source": BASE,
-    "needs": [{k: v for k, v in n.items() if k != "_cand"} for n in needs],
+    "needs": needs,
     "mentors": mentors,
+    "featuredMentors": row[: CFG.get("featuredRow", 6)],
+    "topics": sorted(({"id": t["id"], "n": t["name"], "c": t["count"]} for t in topic_list), key=lambda x: x["n"].lower()),
     "speakers": {k: v for k, v in speakers.items()
-                 if k in mentor_ids or any(talks[i].get("sp") == k for i in used)},
+                 if k in {m["id"] for m in mentors} or any(talks[i].get("sp") == k for i in used)},
     "talks": {i: talks[i] for i in sorted(used)},
     "daily": {"epoch": CFG["dailyEpoch"], "speaker": "leroy-eims", "eps": eps},
 }
-with open(os.path.join(ROOT, "data.json"), "w") as f:
-    json.dump(out, f, separators=(",", ":"), ensure_ascii=False)
+write_json(os.path.join(ROOT, "data.json"), out)
 
 # ---------- curation.md for human review ----------
-L = ["# Felt-need cards: proposed talks", "",
-     f"_Generated {out['generated']} by `scripts/collect.py`. To change a card, put talk IDs in "
-     "`picks` in `scripts/config.json` and re-run._", ""]
+L = ["# Content review", "",
+     f"_Generated {out['generated']} by `scripts/collect.py`. Edit `scripts/config.json`, then re-run._", "",
+     "**DRAFT** = written by Claude from the title and topics only (no transcript). Please edit.", ""]
+L += ["## Featured mentor row (in order)", ""]
+for k, i in enumerate(out["featuredMentors"], 1):
+    s = speakers[i]
+    L.append(f"{k}. **{s['n']}** — {s['line']}")
+L += [""]
+for m in mentors:
+    s = speakers[m["id"]]
+    L += [f"### {s['n']}{'  ·  **DRAFT**' if s.get('aboutDraft') else ''}", s["about"] or "_(no paragraph)_", ""]
 for n in needs:
-    L += [f"## {n['title']}", f"Topics: {', '.join(n['topics'])}", ""]
+    L += [f"## {n['title']}{'' if n['featured'] else '  (on All topics page)'}",
+          "Topics: " + ", ".join(t["n"] for t in n["topics"]), ""]
     for k, i in enumerate(n["talks"], 1):
         t = talks[i]
         L.append(f"{k}. **{t['t']}** — {speakers.get(t.get('sp'), {}).get('n', '?')}  ")
-        L.append(f"   ID `{i}` · {', '.join(t.get('tp', []))} · [listen]({t['u']})")
+        if t.get("sm"):
+            L.append(f"   {'**DRAFT** ' if t.get('smd') else ''}_{t['sm']}_  ")
+        L.append(f"   ID `{i}` · {t['lk']} sample likes · [listen]({t['u']})" + (f" · [PDF]({t['pdf']})" if t.get("pdf") else ""))
     L += [""]
-L += ["# Mentors", ""]
-for m in mentors:
-    s = speakers[m["id"]]
-    L.append(f"- **{s['n']}** ({len(m['queue'])} talks) — {s['line'] or '_no bio on site_'}"
-             + ("" if s.get("photo") else " · _no photo on site_"))
 open(os.path.join(ROOT, "curation.md"), "w").write("\n".join(L) + "\n")
 
-json.dump({n["id"]: n["_cand"] for n in needs}, open(os.path.join(CACHE, "_candidates.json"), "w"))
 size = os.path.getsize(os.path.join(ROOT, "data.json"))
-print(f"Done: {len(out['talks'])} talks, {len(eps)} daily capsules, "
-      f"{len(mentors)} mentors -> data.json ({size // 1024} KB)")
+print(f"Done: {len(out['talks'])} talks, {len(eps)} daily capsules, {len(mentors)} mentors, "
+      f"featured row: {', '.join(out['featuredMentors'])} -> data.json ({size // 1024} KB)")

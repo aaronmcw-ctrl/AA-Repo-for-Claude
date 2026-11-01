@@ -23,7 +23,8 @@
         "25341",
         "26182",
         "11556"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "doubt",
@@ -43,7 +44,8 @@
         "7351",
         "18017",
         "22820"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "anxious",
@@ -64,7 +66,8 @@
         "16331",
         "26701",
         "12638"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "temptation",
@@ -84,7 +87,8 @@
         "16099",
         "25486",
         "11733"
-      ]
+      ],
+      "featured": false
     },
     {
       "id": "purpose",
@@ -105,7 +109,8 @@
         "25385",
         "25945",
         "22389"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "relationships",
@@ -125,7 +130,8 @@
         "26144",
         "30289",
         "25533"
-      ]
+      ],
+      "featured": true
     },
     {
       "id": "busy",
@@ -145,7 +151,8 @@
         "23266",
         "22433",
         "30050"
-      ]
+      ],
+      "featured": false
     },
     {
       "id": "leader",
@@ -166,41 +173,150 @@
         "26820",
         "30024",
         "23159"
-      ]
+      ],
+      "featured": false
     }
   ],
   "mentors": [
     {
       "id": "dawson-trotman",
-      "line": "Founded The Navigators and pioneered one-on-one discipleship."
-    },
-    {
-      "id": "leroy-eims",
-      "line": "50+ years with The Navigators. Wrote The Lost Art of Disciplemaking."
-    },
-    {
-      "id": "jerry-bridges",
-      "line": "Author of The Pursuit of Holiness. Navigators staff since 1955."
-    },
-    {
-      "id": "lorne-sanny",
-      "line": "Mentored by Trotman; led The Navigators for 30 years."
-    },
-    {
-      "id": "jim-downing",
-      "line": "24 years in the Navy, then a lifetime of making disciples."
-    },
-    {
-      "id": "irma-warr",
-      "line": "Taught The Godly Woman, a 23-part study for women."
+      "g": "m",
+      "line": "Founded The Navigators and pioneered one-on-one discipleship.",
+      "about": "Dawson Trotman founded The Navigators and helped recover simple, forgotten practices of the Christian life: time in the Word, Scripture memory, prayer, personal follow-up and one-on-one discipleship. His talks are short and urgent, about reproducing your faith in others (“Born to Reproduce”), world vision, and believing God for big things.",
+      "aboutDraft": false
     },
     {
       "id": "ruth-myers",
-      "line": "Missionary in Singapore. Author of The Satisfied Heart."
+      "g": "f",
+      "line": "Missionary in Singapore. Author of The Satisfied Heart.",
+      "about": "Ruth Myers served with The Navigators and as a missionary in Singapore alongside her husband Warren, and wrote The Satisfied Heart. Her messages are warm and practical, often for women, on God's love, emotions and healing, self-image, dating, courtship and marriage.",
+      "aboutDraft": false
     },
     {
-      "id": "sandra-barnett",
-      "line": "Straight talk on dating, teachability and home."
+      "id": "leroy-eims",
+      "g": "m",
+      "line": "50+ years with The Navigators. Wrote The Lost Art of Disciplemaking.",
+      "about": "LeRoy Eims served with The Navigators for over 50 years, including as Director of U.S. Ministries and of Evangelism Worldwide, and wrote 14 books including The Lost Art of Disciplemaking. His large library covers discipleship, the basics of the Christian life, wisdom, the lordship of Christ and witnessing, plus a walk through the whole Bible and the daily 4-minute capsules.",
+      "aboutDraft": false
+    },
+    {
+      "id": "irma-warr",
+      "g": "f",
+      "line": "Taught The Godly Woman, a 23-part study for women.",
+      "about": "Irma Warr is best known in this library for The Godly Woman, a 23-part study for women. Her talks focus on marriage and the home, forgiveness, obedience and the lordship of Christ, with practical help for women growing in their walk with God.",
+      "aboutDraft": true
+    },
+    {
+      "id": "jerry-bridges",
+      "g": "m",
+      "line": "Author of The Pursuit of Holiness. Navigators staff since 1955.",
+      "about": "Jerry Bridges joined The Navigators staff in 1955 and wrote The Pursuit of Holiness, The Pursuit of Godliness and The Discipline of Grace. His talks dig into holiness, grace, the character of God, true fellowship and the Spirit-filled life: careful teaching on how grace changes everyday living.",
+      "aboutDraft": false
+    },
+    {
+      "id": "kirkie-morrissey",
+      "g": "f",
+      "line": "Author and conference speaker on faith, joy and walking with God through hard seasons.",
+      "about": "Kirkie Morrissey speaks at local and national conferences, teaches a class at her church and has written several books. Gentle but powerful, she draws on her own hard seasons; her talks explore faith, joy, the resurrection, the character of God and studies in Isaiah, often for women.",
+      "aboutDraft": false
+    },
+    {
+      "id": "lorne-sanny",
+      "g": "m",
+      "line": "Mentored by Trotman; led The Navigators for 30 years.",
+      "about": "Lorne Sanny was mentored by Dawson Trotman and led The Navigators as General Director for 30 years. His teaching centers on discipleship and spiritual multiplication, the Word of God, leadership and ministry: practical wisdom from a lifetime of making disciples.",
+      "aboutDraft": false
+    },
+    {
+      "id": "jim-downing",
+      "g": "m",
+      "line": "24 years in the Navy, then a lifetime of making disciples.",
+      "about": "After a 24-year Navy career, Jim Downing served on The Navigators staff in many roles, including Deputy President and Chairman of the Board. His talks focus on the devotional life, abiding in and applying God's Word, prayer, the second coming, and growing to maturity as a laborer for Christ.",
+      "aboutDraft": false
     }
-  ]
+  ],
+  "_mentors_note": "Featured row alternates men (g:m) and women (g:f); speakers without a photo are skipped automatically.",
+  "featuredRow": 6,
+  "summaries": {
+    "9288": {
+      "s": "From Philippians 4, MacArthur shows how real contentment grows from standing fast in Christ when life feels like too much.",
+      "draft": false
+    },
+    "22333": {
+      "s": "Even Elijah got depressed: Sanny explains where discouragement comes from, how God uses it, and what to do when it hits.",
+      "draft": false
+    },
+    "26182": {
+      "s": "Using Lot and Abram as a case study, Axup gives practical wisdom for your single years: build your work, get out of debt, give, save and serve.",
+      "draft": false
+    },
+    "28178": {
+      "s": "Christian faith rests on facts, not feelings; Stedman walks through 1 John 5 to show why believers can say “we know.”",
+      "draft": false
+    },
+    "18017": {
+      "s": "From 1 John 5:13, Eims shows that you can know, not just hope, that you have eternal life.",
+      "draft": false
+    },
+    "22820": {
+      "s": "Walking away from faith rarely happens all at once; Warr traces the gradual steps in Psalm 106 so you can spot them early.",
+      "draft": false
+    },
+    "30084": {
+      "s": "Picture a strong friend offering to carry your heavy pack: Eims unpacks 1 Peter 5:7 and what it means to cast your cares on God.",
+      "draft": false
+    },
+    "16250": {
+      "s": "Jesus' invitation in Matthew 11 as a recipe for the stressed: come to Him, take His yoke, and hand Him your burdens one at a time.",
+      "draft": false
+    },
+    "24053": {
+      "s": "Is it right to succeed? Warr lays out biblical principles for doing your job with excellence, honesty and eternal purpose.",
+      "draft": false
+    },
+    "22389": {
+      "s": "Sanny explains Jesus' parable of the good seed and why your purpose includes helping God's kingdom grow and multiply.",
+      "draft": false
+    },
+    "6494": {
+      "s": "Marriage is God's idea: Mayhall shows why a vibrant walk with Christ and steady effort sustain a lifelong love.",
+      "draft": false
+    },
+    "1413": {
+      "s": "Why did God create marriage? Sanny explores its purposes (partnership, companionship and becoming one) and why it shapes everything else.",
+      "draft": false
+    },
+    "26144": {
+      "s": "A look at what Scripture teaches about marriage and how to build one that lasts.",
+      "draft": true
+    },
+    "14917": {
+      "s": "How God meets us in loneliness, and what the Bible offers when you feel isolated.",
+      "draft": true
+    },
+    "16298": {
+      "s": "An honest look at doubt: where it comes from and how to bring your questions to God.",
+      "draft": true
+    },
+    "6611": {
+      "s": "Practical, Bible-rooted help for facing fear and anxiety instead of being run by them.",
+      "draft": true
+    },
+    "14895": {
+      "s": "What Scripture says about worry, and how to trade it for trust.",
+      "draft": true
+    },
+    "12799": {
+      "s": "How to discover where God has wired you to serve and find your place.",
+      "draft": true
+    },
+    "11439": {
+      "s": "How God's bigger purpose gives direction and meaning to your own life.",
+      "draft": true
+    },
+    "19150": {
+      "s": "Ruth Myers on dating, courtship and preparing well for marriage.",
+      "draft": true
+    }
+  }
 }
