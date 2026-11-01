@@ -38,12 +38,13 @@ All of these are things you can ask Claude to do, in plain words.
 | Change who's in the mentor row | Edit `mentors` in `scripts/config.json` (`"g": "f"` for women, `"m"` for men). Speakers without a photo are skipped automatically. |
 | Refresh everything from the library | `python3 scripts/collect_library.py --fresh`, then `python3 scripts/collect.py --fresh` |
 
-Then save the change to GitHub (a "commit" plus a "push") on the `main` branch:
+Then save the change to GitHub (a "commit" plus a "push"). The live site follows the branch chosen under **Settings → Pages** (currently `prototype`); `main` is kept identical:
 
 ```
 git add -A
 git commit -m "Describe the change"
-git push origin main
+git push origin prototype
+git push origin prototype:main
 ```
 
 GitHub Pages rebuilds the live site by itself, usually within 1–2 minutes. If you still see the old version, refresh the page.
