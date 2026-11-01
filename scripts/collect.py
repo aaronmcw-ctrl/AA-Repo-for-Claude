@@ -92,11 +92,13 @@ for cfg in CFG["mentors"]:
     first = re.split(r"(?<=[a-z0-9)])\.\s", bio)[0].rstrip(".") + "." if bio else ""
     speakers[d["id"]] = {"n": d["name"], "photo": absurl(d.get("photo")), "bio": bio,
                          "line": cfg.get("line") or first}
-    # Queue order: each series in its own order (series A-Z), then standalone talks A-Z.
+    # Queue order: each series in its own order (series A-Z), then standalone talks A-Z,
+    # then music recordings last (they are songs, not talks).
     def qkey(i):
         t = talks[i]
-        return (0, t["se"].lower(), t.get("so") or 9999, t["t"].lower()) if t.get("se") \
-            else (1, "", 0, t["t"].lower())
+        music = 1 if "Music" in t.get("tp", []) else 0
+        return (music, 0, t["se"].lower(), t.get("so") or 9999, t["t"].lower()) if t.get("se") \
+            else (music, 1, "", 0, t["t"].lower())
     mentors.append({"id": d["id"], "queue": sorted(ids, key=qkey)})
 
 # ---------- Felt-need cards ----------

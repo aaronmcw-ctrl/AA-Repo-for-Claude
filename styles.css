@@ -217,6 +217,7 @@ h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: -0.025em; }
 .talk__t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-weight: 600; font-size: 17px; line-height: 1.22; }
 .talk__s { display: block; margin-top: 4px; color: var(--muted); font-size: 15px; }
 .talk__tp { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-hi); }
+.talk__time { display: inline-block; margin: 6px 0 0 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .talk__state { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); }
 .talk__prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); border-radius: 0 3px 3px 0; }
 .talk.is-current { background: linear-gradient(90deg, var(--accent-soft), var(--s1) 70%); }

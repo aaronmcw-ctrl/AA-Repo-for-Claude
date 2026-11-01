@@ -134,10 +134,18 @@
     return `<button class="talk${cur ? " is-current" : ""}${cur && P.playing() ? " is-playing" : ""}${p?.[2] ? " is-done" : ""}" data-play="${esc(id)}" data-ctx="${esc(ctx)}" data-idx="${idx}"
         aria-label="Play ${esc(t.t)} by ${esc(s.n)}">
       <span class="talk__art">${speakerArt(t.sp)}</span>
-      <span><span class="talk__t">${esc(t.t)}</span><span class="talk__s">${esc(s.n)}</span>${topic ? `<span class="talk__tp">${esc(topic)}</span>` : ""}</span>
+      <span><span class="talk__t">${esc(t.t)}</span><span class="talk__s">${esc(s.n)}</span>${topic ? `<span class="talk__tp">${esc(topic)}</span>` : ""}${timeNote(p)}</span>
       <span class="talk__state">${state}</span>
       ${pct > 0 && !p?.[2] ? `<span class="talk__prog" style="width:${pct.toFixed(1)}%"></span>` : ""}
     </button>`;
+  }
+
+  // "23 min left" / "41 min" once we've seen a talk's length
+  function timeNote(p) {
+    if (!p || !p[1]) return "";
+    const mins = (s) => Math.max(1, Math.round(s / 60));
+    const txt = p[2] ? `${mins(p[1])} min · played` : p[0] > 5 ? `${mins(p[1] - p[0])} min left` : `${mins(p[1])} min`;
+    return `<span class="talk__time">${txt}</span>`;
   }
 
   // Queue contexts: "need:<id>", "mentor:<id>", "daily"
@@ -427,6 +435,14 @@
     a.addEventListener("error", () => { paint(); toast("Couldn't load this talk. Check your connection."); });
     a.addEventListener("ratechange", () => { el.speed.textContent = a.playbackRate + "×"; });
     window.addEventListener("pagehide", () => { persistPos(); flushProg(); });
+    // keyboard (desktop): space = play/pause, arrows = skip
+    document.addEventListener("keydown", (e) => {
+      if (e.target.closest("input,textarea") || e.metaKey || e.ctrlKey) return;
+      if (e.code === "Space" && currentId() && !e.target.closest("button,summary")) { e.preventDefault(); toggle(); }
+      else if (e.key === "ArrowLeft" && currentId()) seek(a.currentTime - SKIP_BACK);
+      else if (e.key === "ArrowRight" && currentId()) seek(a.currentTime + SKIP_FWD);
+      else if (e.key === "Escape") close();
+    });
     document.addEventListener("visibilitychange", () => { if (document.hidden) { persistPos(); flushProg(); } });
 
     // controls
