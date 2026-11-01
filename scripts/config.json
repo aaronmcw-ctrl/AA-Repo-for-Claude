@@ -1,0 +1,206 @@
+{
+  "_about": "Inputs for collect.py. Edit this file, then re-run: python3 scripts/collect.py",
+  "base": "https://discipleshiplibrary.com",
+  "dailyEpoch": "2024-01-01",
+  "needs": [
+    {
+      "id": "alone",
+      "title": "Feeling alone",
+      "blurb": "You're not the only one.",
+      "topics": [
+        "friendship",
+        "fellowship",
+        "discouragement",
+        "depression",
+        "singleness"
+      ],
+      "picks": [
+        "14917",
+        "9288",
+        "28918",
+        "22779",
+        "22333",
+        "25341",
+        "26182",
+        "11556"
+      ]
+    },
+    {
+      "id": "doubt",
+      "title": "Doubting",
+      "blurb": "Honest questions, solid ground.",
+      "topics": [
+        "doubt",
+        "assurance-of-salvation",
+        "faith"
+      ],
+      "picks": [
+        "16298",
+        "22616",
+        "16465",
+        "11151",
+        "28178",
+        "7351",
+        "18017",
+        "22820"
+      ]
+    },
+    {
+      "id": "anxious",
+      "title": "Anxious / worried",
+      "blurb": "Breathe. Then listen.",
+      "topics": [
+        "worry",
+        "fear",
+        "peace",
+        "stress-management"
+      ],
+      "picks": [
+        "6611",
+        "14895",
+        "5718",
+        "30084",
+        "16250",
+        "16331",
+        "26701",
+        "12638"
+      ]
+    },
+    {
+      "id": "temptation",
+      "title": "Temptation",
+      "blurb": "Real talk on the real fight.",
+      "topics": [
+        "temptation",
+        "purity",
+        "holiness-holy"
+      ],
+      "picks": [
+        "15883",
+        "26163",
+        "18042",
+        "30345",
+        "25091",
+        "16099",
+        "25486",
+        "11733"
+      ]
+    },
+    {
+      "id": "purpose",
+      "title": "Purpose & calling",
+      "blurb": "What am I here for?",
+      "topics": [
+        "purpose-in-life",
+        "will-of-god",
+        "work",
+        "vision"
+      ],
+      "picks": [
+        "24053",
+        "11439",
+        "18466",
+        "12875",
+        "12799",
+        "25385",
+        "25945",
+        "22389"
+      ]
+    },
+    {
+      "id": "relationships",
+      "title": "Relationships & marriage",
+      "blurb": "Love that lasts.",
+      "topics": [
+        "dating",
+        "marriage",
+        "relationships"
+      ],
+      "picks": [
+        "19150",
+        "12443",
+        "10197",
+        "6494",
+        "1413",
+        "26144",
+        "30289",
+        "25533"
+      ]
+    },
+    {
+      "id": "busy",
+      "title": "Too busy",
+      "blurb": "Less hurry. More life.",
+      "topics": [
+        "time-management",
+        "goals-priorities-use-of-time",
+        "balance",
+        "quiet-time"
+      ],
+      "picks": [
+        "16029",
+        "23696",
+        "26650",
+        "27335",
+        "23266",
+        "22433",
+        "30050"
+      ]
+    },
+    {
+      "id": "leader",
+      "title": "Growing as a leader",
+      "blurb": "Lead people, not just projects.",
+      "topics": [
+        "leadership",
+        "mentoring",
+        "disciplemaking",
+        "servanthood"
+      ],
+      "picks": [
+        "28836",
+        "16391",
+        "29266",
+        "27133",
+        "13759",
+        "26820",
+        "30024",
+        "23159"
+      ]
+    }
+  ],
+  "mentors": [
+    {
+      "id": "dawson-trotman",
+      "line": "Founded The Navigators and pioneered one-on-one discipleship."
+    },
+    {
+      "id": "leroy-eims",
+      "line": "50+ years with The Navigators. Wrote The Lost Art of Disciplemaking."
+    },
+    {
+      "id": "jerry-bridges",
+      "line": "Author of The Pursuit of Holiness. Navigators staff since 1955."
+    },
+    {
+      "id": "lorne-sanny",
+      "line": "Mentored by Trotman; led The Navigators for 30 years."
+    },
+    {
+      "id": "jim-downing",
+      "line": "24 years in the Navy, then a lifetime of making disciples."
+    },
+    {
+      "id": "irma-warr",
+      "line": "Taught The Godly Woman, a 23-part study for women."
+    },
+    {
+      "id": "ruth-myers",
+      "line": "Missionary in Singapore. Author of The Satisfied Heart."
+    },
+    {
+      "id": "sandra-barnett",
+      "line": "Straight talk on dating, teachability and home."
+    }
+  ]
+}

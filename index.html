@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Discipleship Audio</title>
+  <meta name="description" content="Short, honest talks for what you're facing right now. Streaming from the Discipleship Library." />
+  <meta name="theme-color" content="#0B0B0E" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Shared SVG filter: turns small headshots into a bold coral duotone -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="duo" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values=".33 .33 .33 0 0  .33 .33 .33 0 0  .33 .33 .33 0 0  0 0 0 1 0" />
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0.07 1" />
+        <feFuncG type="table" tableValues="0.04 0.86" />
+        <feFuncB type="table" tableValues="0.05 0.80" />
+      </feComponentTransfer>
+    </filter>
+  </svg>
+
+  <main id="app" aria-live="polite"></main>
+
+  <!-- Mini player (always visible once something is loaded) -->
+  <div id="mini" class="mini" hidden>
+    <div class="mini__bar"><span id="miniFill"></span></div>
+    <button class="mini__open" id="miniOpen" aria-label="Open player">
+      <span class="mini__art" id="miniArt"></span>
+      <span class="mini__text">
+        <span class="mini__title" id="miniTitle"></span>
+        <span class="mini__sub" id="miniSub"></span>
+      </span>
+    </button>
+    <button class="icon-btn mini__play" id="miniPlay" aria-label="Play"></button>
+  </div>
+
+  <!-- Full-screen player sheet -->
+  <section id="sheet" class="sheet" aria-hidden="true" aria-label="Now playing">
+    <div class="sheet__inner">
+      <header class="sheet__top">
+        <button class="icon-btn" id="sheetClose" aria-label="Close player">
+          <svg viewBox="0 0 24 24" width="28" height="28"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="sheet__ctx" id="sheetCtx">Now playing</span>
+        <span style="width:44px"></span>
+      </header>
+
+      <div class="sheet__art" id="sheetArt"></div>
+
+      <div class="sheet__meta">
+        <h2 class="sheet__title" id="sheetTitle"></h2>
+        <p class="sheet__sub" id="sheetSub"></p>
+      </div>
+
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Seek" />
+        <div class="scrub__times"><span id="tCur">0:00</span><span id="tLeft">-0:00</span></div>
+      </div>
+
+      <div class="controls">
+        <button class="ctl" id="speed" aria-label="Playback speed">1×</button>
+        <button class="ctl ctl--skip" id="back15" aria-label="Back 15 seconds">
+          <svg viewBox="0 0 32 32" width="34" height="34"><path d="M16 6a10 10 0 1 1-9.5 6.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M6 5v8h8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="20.5" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor" font-family="Inter,system-ui">15</text></svg>
+        </button>
+        <button class="ctl ctl--main" id="play" aria-label="Play"></button>
+        <button class="ctl ctl--skip" id="fwd30" aria-label="Forward 30 seconds">
+          <svg viewBox="0 0 32 32" width="34" height="34"><path d="M16 6a10 10 0 1 0 9.5 6.9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M26 5v8h-8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><text x="16" y="20.5" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor" font-family="Inter,system-ui">30</text></svg>
+        </button>
+        <button class="ctl" id="next" aria-label="Next talk">
+          <svg viewBox="0 0 24 24" width="26" height="26"><path d="M6 5l9 7-9 7z M17 5v14" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <div class="upnext">
+        <h3 class="upnext__h">Up next</h3>
+        <ol class="upnext__list" id="upnext"></ol>
+      </div>
+    </div>
+  </section>
+
+  <audio id="audio" preload="metadata"></audio>
+  <script src="app.js"></script>
+</body>
+</html>
