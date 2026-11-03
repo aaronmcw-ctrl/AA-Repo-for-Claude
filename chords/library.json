@@ -1,0 +1,77 @@
+{
+ "about": "Built-in songs. chordMap holds chords only (no lyrics), keyed to one LRCLIB lyrics entry; see README.",
+ "songs": [
+  {
+   "id": "aw-my-jesus",
+   "title": "My Jesus",
+   "artist": "Anne Wilson",
+   "videoId": "cWLm6z42Gk8",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "aw-sunday-sermons",
+   "title": "Sunday Sermons",
+   "artist": "Anne Wilson",
+   "videoId": "nQHmWleQeZA",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "aw-strong",
+   "title": "Strong",
+   "artist": "Anne Wilson",
+   "videoId": "iFk2iYq4Zjk",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "lc-truth-im-standing-on",
+   "title": "Truth I'm Standing On",
+   "artist": "Leanna Crawford",
+   "videoId": "mQq1zEBk41E",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "lc-still-waters",
+   "title": "Still Waters (Psalm 23)",
+   "artist": "Leanna Crawford",
+   "videoId": "v1IaQvgPsfA",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "jq-the-prodigal",
+   "title": "The Prodigal",
+   "artist": "Josiah Queen",
+   "videoId": "3B3hC706X90",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "jq-dusty-bibles",
+   "title": "Dusty Bibles",
+   "artist": "Josiah Queen",
+   "videoId": "eVz3Ag5FKEM",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "jq-two-wooden-beams",
+   "title": "Two Wooden Beams",
+   "artist": "Josiah Queen",
+   "videoId": "NYhnmpsognI",
+   "version": 1,
+   "chordMap": null
+  },
+  {
+   "id": "jq-when-i-see-you",
+   "title": "when I see You",
+   "artist": "Josiah Queen",
+   "videoId": "GyMt2_rZ7nE",
+   "version": 1,
+   "chordMap": null
+  }
+ ]
+}

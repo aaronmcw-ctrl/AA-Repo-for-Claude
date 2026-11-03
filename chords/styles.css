@@ -171,3 +171,18 @@ button { font: inherit; color: inherit; }
 @media (min-width: 720px) {
   #app { max-width: 720px; margin: 0 auto; }
 }
+
+/* add-song extras */
+.found { display: grid; grid-template-columns: 112px 1fr; gap: 12px; align-items: start; }
+.found[hidden] { display: none; }
+.found img { width: 112px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: var(--panel2); }
+.found .two { grid-template-columns: 1fr; gap: 8px; }
+.status { margin: 0; font-size: 15px; }
+.status[hidden] { display: none; }
+.ok { color: #7ee2a8; font-weight: 600; }
+.muted { color: var(--muted); }
+.link { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0; cursor: pointer; font-size: 14px; }
+.chordbox { background: var(--panel); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.chordbox .btn[hidden] { display: none; }
+.chordbox .btn { justify-self: start; }
+.nochords { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 4px; color: var(--muted); }

@@ -16,6 +16,27 @@
   const savePrefs = () => store.set('ca.prefs', prefs);
   const findSong = (id) => songs.find((s) => s.id === id);
   const newId = () => Math.random().toString(36).slice(2, 10);
+  const hidden = store.get('ca.hidden', []);
+
+  // Built-in songs (library.json). Each phone keeps its own copy with its own capo, key and sync.
+  async function loadLibrary() {
+    try {
+      const r = await fetch('library.json', { cache: 'no-cache' });
+      const lib = await r.json();
+      for (const L of lib.songs || []) {
+        if (hidden.includes(L.id)) continue;
+        const s = findSong(L.id);
+        if (!s) songs.push({ ...L, lib: true, libVersion: L.version || 0, sheet: '', offset: 0, transpose: 0, capo: null });
+        else if ((L.version || 0) > (s.libVersion || 0)) {
+          const mine = s.sheet && s.sheet.trim();
+          const newLrc = L.chordMap && (!s.chordMap || s.chordMap.lrclibId !== L.chordMap.lrclibId);
+          Object.assign(s, { title: L.title, artist: L.artist, videoId: L.videoId, libVersion: L.version || 0 });
+          if (!mine) { s.chordMap = L.chordMap || null; if (newLrc) { s.lrc = ''; s.offset = 0; } }
+        }
+      }
+      saveSongs();
+    } catch {}
+  }
 
   // ---------- helpers ----------
   function ytId(s) {
@@ -39,6 +60,70 @@
     return r.json();
   }
 
+  // ---------- song name from a YouTube link ----------
+  function parseYtTitle(title, author) {
+    const words = 'official|lyrics?|audio|video|visuali[sz]er|music|performance|live|acoustic|hd|4k|remaster(ed)?';
+    let t = (title || '')
+      .replace(new RegExp(`\\s*[\\(\\[][^\\)\\]]*\\b(${words}|ft\\.?|feat\\.?|with lyrics)\\b[^\\)\\]]*[\\)\\]]`, 'gi'), '')
+      .replace(/\s+(ft|feat)\.?\s.*$/i, '')
+      .trim();
+    let artist = (author || '').replace(/VEVO$/i, '').replace(/\s*-\s*Topic$/i, '').replace(/\s*(official|music)$/i, '').trim();
+    const m = t.match(/^(.+?)\s+[-–—|]\s+(.+)$/) || t.match(/^(.+?)\s*[-–—|]\s*(.+)$/);
+    if (m) {
+      const [a, b] = [m[1].trim(), m[2].trim()];
+      const aIsArtist = S.similarity(S.norm(a), S.norm(artist)) >= S.similarity(S.norm(b), S.norm(artist));
+      if (aIsArtist) { t = b; artist = a.split(/\s*,\s*/)[0]; } else { t = a; artist = b; }
+    }
+    return { title: t.trim(), artist: artist.trim() };
+  }
+  async function ytInfo(id) {
+    const url = encodeURIComponent(`https://www.youtube.com/watch?v=${id}`);
+    for (const u of [`https://www.youtube.com/oembed?format=json&url=${url}`, `https://noembed.com/embed?url=${url}`]) {
+      try {
+        const r = await fetch(u);
+        if (!r.ok) continue;
+        const j = await r.json();
+        if (j.title) return parseYtTitle(j.title, j.author_name);
+      } catch {}
+    }
+    return null;
+  }
+
+  // ---------- timed lyrics, picked automatically ----------
+  const baseTitle = (s) => S.norm((s || '').replace(/\s*[\(\[].*?[\)\]]/g, ''));
+  function rankLyrics(results, song, videoDur) {
+    const want = baseTitle(song.title), who = S.norm(song.artist || '');
+    return results
+      .map((r) => {
+        let score = S.similarity(want, baseTitle(r.trackName)) * 2;
+        if (who) score += S.similarity(who, S.norm(r.artistName)) ;
+        if (/\blive\b|acoustic|instrumental|remix|karaoke/i.test(`${r.trackName} ${r.albumName}`) && !/\blive\b|acoustic/i.test(song.title)) score -= 0.6;
+        if (videoDur) score -= Math.min(Math.abs(r.duration - videoDur), 30) / 15;
+        return { r, score };
+      })
+      .filter((x) => S.similarity(want, baseTitle(x.r.trackName)) >= 0.5)
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.r);
+  }
+  async function useLyrics(song, r) {
+    if (!r.syncedLyrics) r = await lrclibGet(r.id);
+    song.lrc = r.syncedLyrics || '';
+    song.lrclibId = r.id;
+    song.lrcDuration = r.duration;
+  }
+  // Fills song.lrc. For library songs, the chords were made for one exact lyrics entry.
+  async function findLyrics(song, videoDur) {
+    if (song.chordMap && song.chordMap.lrclibId) return useLyrics(song, { id: song.chordMap.lrclibId });
+    const res = await lrclibSearch(song.title, song.artist || '');
+    const ranked = rankLyrics(res, song, videoDur);
+    song.lrcCandidates = ranked.map(({ id, trackName, artistName, albumName, duration }) => ({ id, trackName, artistName, albumName, duration }));
+    song.lrcTried = true;
+    if (ranked.length) await useLyrics(song, ranked[0]);
+  }
+
+  // The chart the song page shows: a pasted chart, or library chords laid onto the lyrics.
+  const withSheet = (song) => (song.chordMap && song.lrc ? { ...song, sheet: S.sheetFromMap(song.lrc, song.chordMap) } : song);
+
   // Share links: the song (minus lyrics, which are re-fetched) squeezed into the URL.
   const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const unb64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
@@ -59,8 +144,8 @@
     return JSON.parse(new TextDecoder().decode(bytes));
   }
   async function shareSong(song) {
-    const { title, artist, videoId, sheet, lrclibId, offset, capo, transpose, lineTimes } = song;
-    const payload = { title, artist, videoId, sheet, lrclibId, offset, capo, transpose, lineTimes };
+    const { title, artist, videoId, sheet, chordMap, lrclibId, offset, capo, transpose, lineTimes, useTap } = song;
+    const payload = { title, artist, videoId, sheet, chordMap, lrclibId, offset, capo, transpose, lineTimes, useTap };
     if (!lrclibId && song.lrc) payload.lrc = song.lrc;
     const url = location.href.split('#')[0] + '#import=' + (await pack(payload));
     if (navigator.share) {
@@ -86,9 +171,9 @@
     window.scrollTo(0, 0);
     if (h.startsWith('#import=')) return importView(h.slice(8));
     let m;
-    if ((m = h.match(/^#\/song\/(\w+)/)) && findSong(m[1])) return songView(findSong(m[1]));
+    if ((m = h.match(/^#\/song\/([\w-]+)/)) && findSong(m[1])) return songView(findSong(m[1]));
     if (h === '#/add') return editView(null);
-    if ((m = h.match(/^#\/edit\/(\w+)/)) && findSong(m[1])) return editView(findSong(m[1]));
+    if ((m = h.match(/^#\/edit\/([\w-]+)/)) && findSong(m[1])) return editView(findSong(m[1]));
     return homeView();
   }
   window.addEventListener('hashchange', route);
@@ -96,27 +181,19 @@
   // ---------- home ----------
   function homeView() {
     document.title = 'Chord Along';
-    const list = songs.slice().sort((a, b) => (b.opened || 0) - (a.opened || 0));
+    const list = songs.slice().sort((a, b) => (b.opened || 0) - (a.opened || 0) || (a.lib ? 0 : -1) - (b.lib ? 0 : -1));
+    const hasChords = (s) => !!(s.chordMap || (s.sheet && s.sheet.trim()));
     app.innerHTML = `
       <header class="top">
         <h1>Chord Along</h1>
         <a class="btn primary" href="#/add">+ Add song</a>
       </header>
-      ${list.length ? `<ul class="songs">${list.map((s) => `
+      <ul class="songs">${list.map((s) => `
         <li><a class="song" href="#/song/${s.id}">
           <img src="${thumb(s.videoId)}" alt="" loading="lazy">
-          <span><b>${esc(s.title)}</b><small>${esc(s.artist || '')}</small></span>
-        </a></li>`).join('')}</ul>` : `
-        <section class="empty">
-          <h2>Add your first song</h2>
-          <ol>
-            <li>Find the song on YouTube and copy the link (Share → Copy link). Lyric videos and "official audio" line up best.</li>
-            <li>Find a chord chart for it on a chord site and copy the chords and lyrics.</li>
-            <li>Tap <b>+ Add song</b>, paste both, and press <b>Find timed lyrics</b>.</li>
-          </ol>
-          <p>Then press play: the chords follow the song, with finger positions for guitar and piano.</p>
-        </section>`}
-      <footer class="foot">Timed lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a>. Songs you add are saved on this phone; use Share to send one to someone else.</footer>`;
+          <span><b>${esc(s.title)}</b><small>${esc(s.artist || '')}${hasChords(s) ? '' : ' · <i>no chords yet</i>'}</small></span>
+        </a></li>`).join('')}</ul>
+      <footer class="foot">Tap a song and press play. To add one, paste a YouTube link: the name, artist and timed lyrics fill in by themselves. Timed lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a>.</footer>`;
   }
 
   // ---------- add / edit ----------
@@ -124,6 +201,7 @@
     const isNew = !song;
     const draft = song ? { ...song } : { id: newId(), title: '', artist: '', videoId: '', sheet: '', lrc: '', lrclibId: null, offset: 0, capo: null, transpose: 0 };
     document.title = isNew ? 'Add song' : 'Edit ' + draft.title;
+    let typedName = !isNew; // don't overwrite names the person typed
     app.innerHTML = `
       <header class="top">
         <a class="btn ghost" href="${isNew ? '#' : '#/song/' + draft.id}">‹ Back</a>
@@ -131,91 +209,140 @@
         <span></span>
       </header>
       <form class="form" id="f" autocomplete="off">
-        <label>YouTube link<input name="yt" inputmode="url" placeholder="https://youtu.be/…" value="${draft.videoId ? 'https://youtu.be/' + draft.videoId : ''}"></label>
-        <div class="two">
-          <label>Song<input name="title" value="${esc(draft.title)}" placeholder="Song title"></label>
-          <label>Artist<input name="artist" value="${esc(draft.artist)}" placeholder="Artist"></label>
+        <label>YouTube link<input name="yt" inputmode="url" placeholder="Paste a YouTube link" value="${draft.videoId ? 'https://youtu.be/' + draft.videoId : ''}"></label>
+        <div class="found" id="found"${draft.videoId ? '' : ' hidden'}>
+          <img id="foundImg" alt="" src="${draft.videoId ? thumb(draft.videoId) : ''}">
+          <div class="two">
+            <label>Song<input name="title" value="${esc(draft.title)}"></label>
+            <label>Artist<input name="artist" value="${esc(draft.artist)}"></label>
+          </div>
         </div>
-        <label>Chord chart
-          <textarea name="sheet" rows="12" spellcheck="false" placeholder="Paste chords and lyrics, e.g.&#10;&#10;[Verse 1]&#10;G              D&#10;Here are the words&#10;Em         C&#10;of the song">${esc(draft.sheet)}</textarea>
-        </label>
-        <p class="hint" id="sheetInfo"></p>
-        <div class="lyr">
-          <div class="lyr__head"><b>Timed lyrics</b> <span id="lyrState"></span></div>
-          <button type="button" class="btn" id="find">Find timed lyrics</button>
-          <div id="results"></div>
-          <details><summary>Paste timed lyrics (LRC) yourself</summary>
-            <textarea name="lrc" rows="5" spellcheck="false" placeholder="[00:12.30] First line…">${esc(draft.lrc || '')}</textarea>
-          </details>
-          <p class="hint">No timed lyrics for this song? Save anyway, then use <b>Tap along</b> on the song page to set the timing yourself.</p>
+        <p class="status" id="lyrState"></p>
+        <div id="lyrPick" hidden></div>
+        <p class="status" id="libState" hidden></p>
+        <div class="chordbox" id="chordBox">
+          <div class="chordbox__head"><b>Chords</b>${draft.chordMap ? ' <span class="ok">✓ from the library</span>' : ''}</div>
+          ${draft.chordMap ? '<p class="hint">This song’s chords come from the built-in library. Paste a chart below only to replace them.</p>' : `
+          <p class="hint">Tap <b>Find chords</b>, copy the chords and words from that page, and paste them here. Or save now and add chords later.</p>`}
+          <a class="btn" id="findChords" target="_blank" rel="noopener">Find chords ↗</a>
+          <textarea name="sheet" rows="10" spellcheck="false" placeholder="Paste the chord chart here">${esc(draft.sheet || '')}</textarea>
+          <p class="hint" id="sheetInfo"></p>
         </div>
-        <p class="hint" id="matchInfo"></p>
         <div class="actions">
           <button class="btn primary" type="submit">Save</button>
           ${isNew ? '' : '<button type="button" class="btn danger" id="del">Delete song</button>'}
         </div>
       </form>`;
     const f = $('#f');
-    const updateInfo = () => {
+    const setLyrState = (html) => { $('#lyrState').innerHTML = html; };
+
+    const updateChordInfo = () => {
       draft.sheet = f.sheet.value;
-      draft.lrc = f.lrc.value.trim();
+      const q = encodeURIComponent(`${f.title.value} ${f.artist.value}`.trim());
+      $('#findChords').href = `https://www.ultimate-guitar.com/search.php?search_type=title&value=${q}`;
+      $('#findChords').hidden = !f.title.value.trim();
+      if (!draft.sheet.trim()) { $('#sheetInfo').textContent = ''; return; }
       const p = S.parseSheet(draft.sheet);
-      const names = p.chords.map((c) => c.text);
-      $('#sheetInfo').textContent = draft.sheet.trim()
-        ? `${p.lines.length} lines · chords: ${names.join('  ') || 'none found'}`
-        : 'Tip: on Ultimate Guitar, WorshipTogether or a church chord sheet, select the chords + lyrics and copy.';
-      $('#lyrState').textContent = draft.lrc ? `✓ ${S.parseLrc(draft.lrc).filter((l) => l.text).length} timed lines` : '— none yet';
-      if (draft.lrc && draft.sheet.trim()) {
+      let msg = `Chords found: ${p.chords.map((c) => c.text).join('  ') || 'none — is this a chord chart?'}`;
+      if (draft.lrc) {
         const b = S.buildRows(draft);
         const sung = b.rows.filter((r) => r.lyric.trim());
         const hit = sung.filter((r) => r.chords.length).length;
-        $('#matchInfo').textContent = `Chords lined up on ${hit} of ${sung.length} sung lines.` + (hit < sung.length * 0.5 ? ' (Low — check the chart is the same song, or that lines without chords are expected.)' : '');
-      } else $('#matchInfo').textContent = '';
+        msg += ` · lined up with ${hit} of ${sung.length} sung lines`;
+      }
+      $('#sheetInfo').textContent = msg;
     };
-    f.sheet.addEventListener('input', updateInfo);
-    f.lrc.addEventListener('input', () => { draft.lrclibId = null; updateInfo(); });
-    updateInfo();
+    f.sheet.addEventListener('input', updateChordInfo);
 
-    $('#find').onclick = async () => {
-      const title = f.title.value.trim(), artist = f.artist.value.trim();
-      const box = $('#results');
-      if (!title) { box.innerHTML = '<p class="hint">Type the song title first.</p>'; return; }
-      box.innerHTML = '<p class="hint">Searching…</p>';
-      try {
-        const res = await lrclibSearch(title, artist);
-        if (!res.length) { box.innerHTML = '<p class="hint">No timed lyrics found. You can still save and use Tap along.</p>'; return; }
-        box.innerHTML = '<p class="hint">Pick the version that matches your video (check the length):</p>' + res.map((r, i) => `
-          <button type="button" class="pick${r.id === draft.lrclibId ? ' on' : ''}" data-i="${i}">
-            <b>${esc(r.trackName)}</b> — ${esc(r.artistName)}<small>${esc(r.albumName || '')} · ${fmtTime(r.duration)}</small>
-          </button>`).join('');
-        box.querySelectorAll('.pick').forEach((b) => b.onclick = () => {
-          const r = res[+b.dataset.i];
-          draft.lrclibId = r.id;
-          f.lrc.value = r.syncedLyrics;
-          if (!f.title.value.trim()) f.title.value = r.trackName;
-          if (!f.artist.value.trim()) f.artist.value = r.artistName;
-          box.querySelectorAll('.pick').forEach((x) => x.classList.toggle('on', x === b));
-          updateInfo();
-        });
-      } catch (e) {
-        box.innerHTML = `<p class="hint">Couldn't reach the lyrics service (${esc(e.message)}). Try again, or paste LRC below.</p>`;
+    const showLyrics = () => {
+      if (draft.lrc) {
+        const n = S.parseLrc(draft.lrc).filter((l) => l.text).length;
+        const others = (draft.lrcCandidates || []).length > 1;
+        setLyrState(`<span class="ok">✓ Timed lyrics found</span> <span class="muted">(${n} lines${draft.lrcDuration ? ', ' + fmtTime(draft.lrcDuration) : ''})</span>${others ? ' <button type="button" class="link" id="chg">wrong version?</button>' : ''}`);
+        const chg = $('#chg');
+        if (chg) chg.onclick = () => {
+          const box = $('#lyrPick');
+          box.hidden = false;
+          box.innerHTML = draft.lrcCandidates.map((r, i) => `<button type="button" class="pick${r.id === draft.lrclibId ? ' on' : ''}" data-i="${i}"><b>${esc(r.trackName)}</b> — ${esc(r.artistName)}<small>${esc(r.albumName || '')} · ${fmtTime(r.duration)}</small></button>`).join('');
+          box.onclick = async (e) => {
+            const b = e.target.closest('.pick');
+            if (!b) return;
+            const r = draft.lrcCandidates[+b.dataset.i];
+            box.querySelectorAll('.pick').forEach((x) => x.classList.toggle('on', x === b));
+            await useLyrics(draft, r);
+            draft.lrcPinned = true;
+            showLyrics();
+            updateChordInfo();
+          };
+        };
+      } else if (draft.lrcTried) {
+        setLyrState('<span class="muted">No timed lyrics found for this song. You can still save it and use <b>Tap along</b> on the song page.</span>');
       }
     };
+
+    let lookupId = 0;
+    const lookupLyrics = async () => {
+      const id = ++lookupId;
+      if (!f.title.value.trim()) return;
+      draft.title = f.title.value.trim();
+      draft.artist = f.artist.value.trim();
+      setLyrState('<span class="muted">Looking for timed lyrics…</span>');
+      draft.lrc = ''; draft.lrcTried = false; draft.lrcPinned = false;
+      try { await findLyrics(draft); } catch (e) { if (id === lookupId) setLyrState(`<span class="muted">Couldn't reach the lyrics service right now. Save anyway; it will try again when you open the song.</span>`); return; }
+      if (id !== lookupId) return;
+      showLyrics();
+      updateChordInfo();
+    };
+
+    const checkLibrary = () => {
+      const t = S.norm(f.title.value);
+      const hit = songs.find((s) => s.id !== draft.id && (s.videoId === draft.videoId || (t && S.norm(s.title) === t)));
+      const el = $('#libState');
+      el.hidden = !hit;
+      if (hit) el.innerHTML = `“${esc(hit.title)}” is already in your songs. <a href="#/song/${hit.id}">Open it</a>`;
+    };
+
+    let lastVid = draft.videoId;
+    const onLink = async () => {
+      const vid = ytId(f.yt.value);
+      if (!vid || vid === lastVid) return;
+      lastVid = vid;
+      draft.videoId = vid;
+      $('#found').hidden = false;
+      $('#foundImg').src = thumb(vid);
+      if (!typedName || !f.title.value.trim()) {
+        setLyrState('<span class="muted">Getting the song name…</span>');
+        const info = await ytInfo(vid);
+        if (info && lastVid === vid) { f.title.value = info.title; f.artist.value = info.artist; }
+        if (!f.title.value.trim()) { setLyrState('<span class="muted">Type the song name and artist.</span>'); f.title.focus(); return; }
+      }
+      checkLibrary();
+      updateChordInfo();
+      lookupLyrics();
+    };
+    f.yt.addEventListener('input', onLink);
+    f.yt.addEventListener('paste', () => setTimeout(onLink, 0));
+    const onName = () => { typedName = true; checkLibrary(); updateChordInfo(); lookupLyrics(); };
+    f.title.addEventListener('change', onName);
+    f.artist.addEventListener('change', onName);
+
+    updateChordInfo();
+    showLyrics();
+    if (isNew) setTimeout(() => f.yt.focus(), 50);
 
     f.onsubmit = (e) => {
       e.preventDefault();
       const vid = ytId(f.yt.value);
-      if (!vid) { alert('Paste a YouTube link (or video ID).'); return; }
-      if (!f.title.value.trim()) { alert('Add the song title.'); return; }
-      if (!f.sheet.value.trim()) { alert('Paste a chord chart.'); return; }
+      if (!vid) { alert('Paste a YouTube link.'); return; }
+      if (!f.title.value.trim()) { alert('Add the song name.'); return; }
+      const sheetChanged = song && (song.sheet || '') !== f.sheet.value;
       draft.videoId = vid;
       draft.title = f.title.value.trim();
       draft.artist = f.artist.value.trim();
       draft.sheet = f.sheet.value;
-      draft.lrc = f.lrc.value.trim();
-      if (song && song.sheet !== draft.sheet) { draft.lineTimes = null; draft.useTap = false; }
-      if (song && song.lrc !== draft.lrc) draft.useTap = false;
-      if (song && song.videoId !== draft.videoId) draft.offset = 0;
+      if (draft.sheet.trim() && draft.chordMap && (isNew || sheetChanged)) draft.chordMap = null; // a pasted chart replaces library chords
+      if (sheetChanged) { draft.lineTimes = null; draft.useTap = false; }
+      if (song && song.videoId !== draft.videoId) { draft.offset = 0; draft.lrcPinned = false; }
       const i = songs.findIndex((s) => s.id === draft.id);
       if (i >= 0) songs[i] = draft; else songs.push(draft);
       saveSongs();
@@ -225,6 +352,7 @@
     if (del) del.onclick = () => {
       if (!confirm(`Delete “${draft.title}” from this phone?`)) return;
       songs = songs.filter((s) => s.id !== draft.id);
+      if (draft.lib) { hidden.push(draft.id); store.set('ca.hidden', hidden); }
       saveSongs();
       location.hash = '#';
     };
@@ -267,8 +395,9 @@
     song.opened = Date.now();
     saveSongs();
     document.title = song.title;
-    let B = S.buildRows(song);
+    let B = S.buildRows(withSheet(song));
     if (song.capo == null) song.capo = 0;
+    let lyricsMsg = '';
 
     app.innerHTML = `
       <header class="top slim">
@@ -330,6 +459,10 @@
     function renderStrip() {
       const strip = $('#strip');
       strip.className = 'strip inst-' + prefs.inst;
+      if (!B.chords.length) {
+        strip.innerHTML = `<div class="nochords"><span>No chords for this song yet.</span><a class="btn" href="#/edit/${song.id}">Add chords</a></div>`;
+        return;
+      }
       if (!B.timed || !B.events.length) {
         strip.innerHTML = `<div class="scroll">${B.chords.map((c) => card(c.text)).join('')}</div>`;
         return;
@@ -390,11 +523,11 @@
         }
         return `${r.section ? `<div class="sec">${esc(r.section)}</div>` : ''}<div class="row${r.t != null ? ' timed' : ''}" data-ri="${ri}">${body}</div>`;
       }).join('');
-      $('#lyrics').innerHTML = out || '<p class="hint">No lines found in the chord chart.</p>';
+      $('#lyrics').innerHTML = out || `<p class="hint">${lyricsMsg || 'No lyrics or chords yet. Tap ••• → Edit to add a chord chart.'}</p>`;
       curEvent = -2;
     }
 
-    function rerender() { B = S.buildRows(song); renderTools(); renderLyrics(); renderStrip(); tick(true); }
+    function rerender() { B = S.buildRows(withSheet(song)); renderTools(); renderLyrics(); renderStrip(); tick(true); }
 
     // --- time tracking ---
     const now = () => (player && player.getCurrentTime ? player.getCurrentTime() : 0);
@@ -449,10 +582,34 @@
       player = new YT.Player('yt', {
         videoId: song.videoId,
         playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
-        events: { onReady: () => tick(true), onStateChange: () => tick(true) },
+        events: { onReady: () => { tick(true); checkDuration(); }, onStateChange: () => { tick(true); checkDuration(); } },
       });
     });
     timer = setInterval(() => tick(false), 100);
+
+    // If another version of the timed lyrics matches this video's length better, switch to it.
+    let durChecked = false;
+    function checkDuration() {
+      if (durChecked || !player || !player.getDuration) return;
+      const d = player.getDuration();
+      if (!d) return;
+      durChecked = true;
+      song.videoDuration = d;
+      if (song.chordMap || song.lrcPinned || !song.lrcDuration || !(song.lrcCandidates || []).length) return;
+      if (Math.abs(song.lrcDuration - d) <= 4) return;
+      const best = rankLyrics(song.lrcCandidates, song, d)[0];
+      if (best && best.id !== song.lrclibId && Math.abs(best.duration - d) + 2 < Math.abs(song.lrcDuration - d)) {
+        useLyrics(song, best).then(() => { persist(); rerender(); }).catch(() => {});
+      }
+    }
+
+    // Fetch timed lyrics the first time a song opens (library songs, or if it failed before).
+    if (!song.lrc && !song.useTap && (!song.lrcTried || song.chordMap)) {
+      lyricsMsg = 'Loading lyrics…';
+      findLyrics(song, song.videoDuration)
+        .then(() => { lyricsMsg = song.lrc ? '' : 'No timed lyrics found for this song.'; persist(); rerender(); durChecked = false; checkDuration(); })
+        .catch(() => { lyricsMsg = 'Couldn’t load lyrics right now. Check the connection and reopen the song.'; rerender(); });
+    }
 
     // --- interactions ---
     $('#tools').onclick = (e) => {
@@ -569,5 +726,5 @@
     };
   }
 
-  route();
+  loadLibrary().finally(route);
 })();

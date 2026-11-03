@@ -91,10 +91,18 @@ function parseSheet(text) {
       if (head.chords) cur.lines.push({ lyric: '', chords: chordTokens(head.chords).map((c, k) => ({ col: k, ch: c.ch })) });
       continue;
     }
+    // ChordPro bars with no words: "[G] [D] [Em]"
+    if (/^\s*(\[[^\]]+\]\s*)+$/.test(line)) {
+      const chs = [...line.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1].trim());
+      if (chs.every((c) => Theory.parseChord(c))) {
+        cur.lines.push({ lyric: '', chords: chs.map((ch, k) => ({ col: k, ch })) });
+        continue;
+      }
+    }
     if (isChordLine(line)) {
       const chords = chordTokens(line);
       const next = raw[i + 1];
-      if (next && next.trim() && !isChordLine(next) && !sectionHeader(next) && !/^\s*\{/.test(next)) {
+      if (next && next.trim() && !isChordLine(next) && !sectionHeader(next) && !/^\s*\{/.test(next) && !inlineChordPro(next)) {
         cur.lines.push(trimIndent({ lyric: next, chords }));
         i++;
       } else {
@@ -193,11 +201,11 @@ function buildRows(song) {
       for (let i = from; i < to; i++) if (!S[i].norm && S[i].chords.length) out.push(i);
       return out;
     };
-    const placeInstrumental = (idxs, from, to) => {
+    const placeInstrumental = (idxs, from, to, before) => {
       if (!idxs.length || to - from < 1.5) return;
       const slot = (to - from) / idxs.length;
       idxs.forEach((si, k) => {
-        const row = { lyric: '', chords: S[si].chords.slice(), section: S[si].sectionStart ? S[si].section : null, t: from + k * slot };
+        const row = { lyric: '', chords: S[si].chords.slice(), section: S[si].sectionStart ? S[si].section : null, t: from + k * slot, before };
         timeChords(row, row.t, slot);
         rows.push(row);
       });
@@ -216,20 +224,20 @@ function buildRows(song) {
       }
       if (bs < 0.5) best = -1;
       if (best >= 0) {
-        if (best > last) placeInstrumental(pending(last + 1, best), k === 0 ? 0 : prevEnd, L.t);
+        if (best > last) placeInstrumental(pending(last + 1, best), k === 0 ? 0 : prevEnd, L.t, k);
         const src = S[best];
-        const row = { lyric: src.lyric, chords: src.chords.slice(), section: src.sectionStart ? src.section : null, t: L.t };
+        const row = { lyric: src.lyric, chords: src.chords.slice(), section: src.sectionStart ? src.section : null, t: L.t, sung: k };
         // Show the section label only the first time we enter it.
         if (row.section && last >= 0 && best === last + 1 && S[last].section === src.section) row.section = null;
         timeChords(row, L.t, dur);
         rows.push(row);
         last = best;
       } else {
-        rows.push({ lyric: L.text, chords: [], section: null, t: L.t });
+        rows.push({ lyric: L.text, chords: [], section: null, t: L.t, sung: k });
       }
       prevEnd = L.t + dur;
     });
-    if (last >= 0) placeInstrumental(pending(last + 1, S.length), prevEnd + 0.5, prevEnd + 0.5 + 4 * pending(last + 1, S.length).length);
+    if (last >= 0) placeInstrumental(pending(last + 1, S.length), prevEnd + 0.5, prevEnd + 0.5 + 4 * pending(last + 1, S.length).length, sung.length);
     rows.sort((a, b) => a.t - b.t);
     // Chords on lyric rows without a match: carry nothing; the previous chord keeps ringing.
   } else {
@@ -249,4 +257,52 @@ function buildRows(song) {
   return { rows, events, chords: sheet.chords, timed: useLrc || (song.lineTimes || []).some((x) => x != null), sheetLines: S };
 }
 
-window.Sheet = { parseSheet, parseLrc, buildRows, isChordLine, norm };
+// ---------- library chord maps ----------
+// Library songs keep chords only, no lyrics: for each sung line of the timed
+// lyrics, which chords are played and at which letter. The lyrics come from
+// LRCLIB when the song opens, and this rebuilds a normal chord chart from both.
+// map = { lines: { "<sung line #>": [[letter, "G"], ...] },
+//         sections: { "<sung line #>": "Chorus" },
+//         before: { "<sung line #>": ["G", "D"] }  // chord-only bars before that line (intro, instrumentals; use the line count for an outro)
+// }
+function sheetFromMap(lrcText, map) {
+  const sung = parseLrc(lrcText).filter((l) => l.text);
+  const out = [];
+  const bars = (chords) => chords.map((c) => `[${c}] `).join(' ');
+  const lines = map.lines || {}, sections = map.sections || {}, before = map.before || {};
+  for (let i = 0; i <= sung.length; i++) {
+    if (before[i]) {
+      out.push(`[${i === 0 ? 'Intro' : i === sung.length ? 'Outro' : 'Instrumental'}]`);
+      out.push(bars(before[i]));
+    }
+    if (i === sung.length) break;
+    if (sections[i]) out.push(`[${sections[i]}]`);
+    const text = sung[i].text;
+    const cs = (lines[i] || []).slice().sort((a, b) => a[0] - b[0]);
+    let s = '', last = 0;
+    for (const [pos, ch] of cs) {
+      const p = Math.max(last, Math.min(pos, text.length));
+      s += text.slice(last, p) + `[${ch}]`;
+      last = p;
+    }
+    out.push(s + text.slice(last));
+  }
+  return out.join('\n');
+}
+
+// The reverse, used when adding songs to the library: chord chart + timed lyrics -> map.
+function mapFromSheet(song) {
+  const B = buildRows(song);
+  const map = { lines: {}, sections: {}, before: {} };
+  for (const r of B.rows) {
+    if (r.sung != null) {
+      if (r.chords.length) map.lines[r.sung] = r.chords.map((c) => [c.col, c.ch]);
+      if (r.section) map.sections[r.sung] = r.section;
+    } else if (r.before != null) {
+      (map.before[r.before] = map.before[r.before] || []).push(...r.chords.map((c) => c.ch));
+    }
+  }
+  return map;
+}
+
+window.Sheet = { parseSheet, parseLrc, buildRows, isChordLine, norm, sheetFromMap, mapFromSheet, similarity };

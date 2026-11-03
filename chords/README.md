@@ -4,15 +4,23 @@ A phone-first play-along page: a YouTube video on top, chords that follow the so
 
 Live at: https://aaronmcw-ctrl.github.io/AA-Repo-for-Claude/chords/
 
+## Built-in songs
+
+`library.json` lists songs that show up on every phone automatically (YouTube video + chords). Each song's `chordMap` holds **chords only, no lyrics**: for each sung line of one LRCLIB timed-lyrics entry, which chords are played and at which letter. The app downloads the lyrics when the song opens and lays the chords onto them.
+
+To add chords to a library song (Claude can do this when `lrclib.net` and a chord site are allowed in the session's network settings):
+
+1. Save the chord chart as `chart.txt` and the LRCLIB timed lyrics as `song.lrc`.
+2. `node tools/make-chordmap.js chart.txt song.lrc <lrclibId>`. It prints the map and how many lines got chords.
+3. Put the output in that song's `chordMap` and raise its `version`, so phones pick up the change.
+
 ## Adding a song (on the phone)
 
-1. **+ Add song** → paste the YouTube link (Share → Copy link). Lyric videos and "official audio" usually line up best.
-2. Type the song and artist.
-3. Paste a chord chart: chords on one line, lyrics on the next (the usual chord-site format). `[Verse]`, `[Chorus]` labels are understood, and an empty `[Chorus]` repeats the earlier chorus. ChordPro (`[G]words`) works too.
-4. **Find timed lyrics** and pick the version whose length matches the video. The page then says how many lines it lined chords up on.
-5. Save and press play. If the chords run early or late, tap **Sync** and tap **Now** when the first line is sung (or nudge by ¼ s).
+1. **+ Add song** → paste a YouTube link. The song name and artist fill in from the video, and timed lyrics are found automatically (the version closest to the video's length wins; "wrong version?" lets you pick another).
+2. Chords: tap **Find chords ↗** (opens a chord-site search for that song), copy the chords + words, paste, save. Or save without chords and add them later.
+3. Press play. If chords run early or late, tap **Sync** and tap **Now** when the first line is sung.
 
-No timed lyrics for a song? Save it anyway and use **••• → Tap along**: play the song and tap at the start of each line.
+No timed lyrics for a song? Use **••• → Tap along**: play the song and tap at the start of each line.
 
 ## On the song page
 
