@@ -171,47 +171,58 @@
   const flushProg = () => { store.set("prog", prog); progDirty = false; };
 
   // ---- Art ---------------------------------------------------------------
-  const NEED_BG = ["#3b0f0b", "#2f0c18", "#3a1806", "#2b0a10", "#311106", "#360d14", "#2d1209", "#3b0d0d"];
+  // Topic colors live in styles.css (--topic-*). Each felt-need topic has its own;
+  // talks/speakers outside those topics get a steady pick from the same six.
+  const PALETTE = ["teal", "plum", "slate", "amber", "gold", "rose"];
+  const TOPIC_COLOR = { alone: "slate", doubt: "plum", anxious: "teal", purpose: "gold", relationships: "rose", all: "amber",
+                        temptation: "amber", busy: "teal", leader: "gold" };
+  const cvar = (name) => `var(--topic-${name})`;
+  const needColor = (id) => cvar(TOPIC_COLOR[id] || PALETTE[hash(id) % PALETTE.length]);
+  const speakerColor = (spId) => cvar(PALETTE[hash(spId) % PALETTE.length]);
+  let talkNeed = null; // talk id -> felt-need id (first card it appears on)
+  function talkColor(id) {
+    if (!talkNeed) { talkNeed = {}; for (const n of D.needs) for (const t of n.talks) talkNeed[t] ||= n.id; }
+    if (talkNeed[id]) return needColor(talkNeed[id]);
+    return speakerColor(talk(id)?.sp || id);
+  }
   const MOTIF = {
     alone: () => {
       let s = "";
-      for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) s += `<circle cx="${30 + c * 36}" cy="${24 + r * 36}" r="9" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/>`;
-      return s + `<circle cx="174" cy="24" r="14" fill="#ff5a47"/>`;
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) s += `<circle cx="${30 + c * 36}" cy="${24 + r * 36}" r="9" fill="none" style="stroke:var(--art-line)" stroke-width="2"/>`;
+      return s + `<circle cx="174" cy="24" r="14" fill="currentColor"/>`;
     },
-    doubt: () => `<text x="118" y="190" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="240" fill="#ff5a47" opacity=".95">?</text><text x="40" y="110" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="110" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2">?</text>`,
-    anxious: () => [0, 1, 2, 3, 4, 5].map((i) => `<path d="M-10 ${30 + i * 22} q 25 -${10 + i * 3} 50 0 t 50 0 t 50 0 t 50 0 t 50 0" fill="none" stroke="${i === 2 ? "#ff5a47" : "rgba(255,255,255,.16)"}" stroke-width="${i === 2 ? 5 : 2}" stroke-linecap="round"/>`).join(""),
-    temptation: () => `<path d="M100 8 C 150 60 170 90 150 140 C 140 165 120 175 100 176 C 70 176 46 154 48 122 C 50 96 70 86 74 62 C 92 84 90 100 102 108 C 112 80 104 44 100 8 Z" fill="#ff5a47"/><path d="M100 70 C 125 100 130 120 118 145 C 110 160 90 160 82 146" fill="none" stroke="rgba(27,7,5,.5)" stroke-width="4" stroke-linecap="round"/>`,
-    purpose: () => [80, 60, 40, 20].map((r, i) => `<circle cx="140" cy="62" r="${r}" fill="${i === 3 ? "#ff5a47" : "none"}" stroke="${i === 3 ? "none" : "rgba(255,255,255,.18)"}" stroke-width="2"/>`).join("") + `<path d="M20 170 L138 64" stroke="#ff5a47" stroke-width="5" stroke-linecap="round"/><path d="M120 62 L140 62 L140 82" fill="none" stroke="#ff5a47" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
-    relationships: () => `<circle cx="78" cy="78" r="58" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/><circle cx="130" cy="78" r="58" fill="#ff5a47" style="mix-blend-mode:screen"/>`,
-    busy: () => `<circle cx="140" cy="62" r="66" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="14"/><path d="M140 -4 A66 66 0 1 1 74 62" fill="none" stroke="#ff5a47" stroke-width="14" stroke-linecap="round"/><path d="M140 62 L140 24 M140 62 L168 76" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
-    leader: () => [0, 1, 2, 3].map((i) => `<path d="M40 ${150 - i * 36} L110 ${100 - i * 36} L180 ${150 - i * 36}" fill="none" stroke="${i === 3 ? "#ff5a47" : "rgba(255,255,255," + (0.1 + i * 0.05) + ")"}" stroke-width="${i === 3 ? 10 : 6}" stroke-linecap="round" stroke-linejoin="round"/>`).join(""),
+    doubt: () => `<text x="118" y="190" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="240" fill="currentColor" opacity=".95">?</text><text x="40" y="110" font-family="Bricolage Grotesque, sans-serif" font-weight="800" font-size="110" fill="none" style="stroke:var(--art-line)" stroke-width="2">?</text>`,
+    anxious: () => [0, 1, 2, 3, 4, 5].map((i) => `<path d="M-10 ${30 + i * 22} q 25 -${10 + i * 3} 50 0 t 50 0 t 50 0 t 50 0 t 50 0" fill="none" style="stroke:${i === 2 ? "currentColor" : "var(--art-line)"}" stroke-width="${i === 2 ? 5 : 2}" stroke-linecap="round"/>`).join(""),
+    temptation: () => `<path d="M100 8 C 150 60 170 90 150 140 C 140 165 120 175 100 176 C 70 176 46 154 48 122 C 50 96 70 86 74 62 C 92 84 90 100 102 108 C 112 80 104 44 100 8 Z" fill="currentColor"/><path d="M100 70 C 125 100 130 120 118 145 C 110 160 90 160 82 146" fill="none" style="stroke:var(--shade)" stroke-width="4" stroke-linecap="round"/>`,
+    purpose: () => [80, 60, 40, 20].map((r, i) => `<circle cx="140" cy="62" r="${r}" fill="${i === 3 ? "currentColor" : "none"}" style="stroke:${i === 3 ? "none" : "var(--art-line)"}" stroke-width="2"/>`).join("") + `<path d="M20 170 L138 64" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M120 62 L140 62 L140 82" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+    relationships: () => `<circle cx="78" cy="78" r="58" fill="none" style="stroke:var(--art-line)" stroke-width="3"/><circle cx="130" cy="78" r="58" fill="currentColor" style="mix-blend-mode:screen"/>`,
+    busy: () => `<circle cx="140" cy="62" r="66" fill="none" style="stroke:var(--art-line)" stroke-width="14"/><path d="M140 -4 A66 66 0 1 1 74 62" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"/><path d="M140 62 L140 24 M140 62 L168 76" style="stroke:var(--text)" stroke-width="4" stroke-linecap="round"/>`,
+    leader: () => [0, 1, 2, 3].map((i) => `<path d="M40 ${150 - i * 36} L110 ${100 - i * 36} L180 ${150 - i * 36}" fill="none" style="stroke:${i === 3 ? "currentColor" : "var(--art-line)"}" stroke-width="${i === 3 ? 10 : 6}" stroke-linecap="round" stroke-linejoin="round"/>`).join(""),
     all: () => {
       let s = "";
       for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
         const on = r === 0 && c === 3;
-        s += `<rect x="${22 + c * 44}" y="${16 + r * 40}" width="32" height="28" rx="8" fill="${on ? "#ff5a47" : "none"}" stroke="${on ? "none" : "rgba(255,255,255,.16)"}" stroke-width="2"/>`;
+        s += `<rect x="${22 + c * 44}" y="${16 + r * 40}" width="32" height="28" rx="8" fill="${on ? "currentColor" : "none"}" style="stroke:${on ? "none" : "var(--art-line)"}" stroke-width="2"/>`;
       }
       return s;
     },
   };
-  function needArt(id, i) {
-    const bg = NEED_BG[i % NEED_BG.length];
-    return `<svg class="art" viewBox="0 0 200 224" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg}"/><stop offset="1" stop-color="#0d0b0c"/></linearGradient>
-      <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1"><stop offset=".35" stop-color="#0b0b0e" stop-opacity="0"/><stop offset="1" stop-color="#0b0b0e" stop-opacity=".85"/></linearGradient></defs>
+  function needArt(id) {
+    return `<svg class="art" viewBox="0 0 200 224" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="--c:${needColor(id)}">
+      <defs><linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c)"/><stop offset="1" style="stop-color:color-mix(in srgb, var(--c) 28%, var(--bg))"/></linearGradient>
+      <linearGradient id="f${id}" x1="0" y1="0" x2="0" y2="1"><stop offset=".35" style="stop-color:var(--bg)" stop-opacity="0"/><stop offset="1" style="stop-color:var(--bg)" stop-opacity=".8"/></linearGradient></defs>
       <rect width="200" height="224" fill="url(#g${id})"/>${(MOTIF[id] || MOTIF.alone)()}<rect width="200" height="224" fill="url(#f${id})"/></svg>`;
   }
-  const TILE_BG = ["#2a1412", "#261320", "#2b1d10", "#2a1018", "#231715"];
   const photoOf = (spId) => SPK[spId]?.photo || null;
-  function speakerArt(spId, photo = photoOf(spId)) {
-    if (photo) return `<div class="photo" style="width:100%;height:100%"><img src="${esc(photo)}" alt="" loading="lazy" decoding="async"></div>`;
-    const bg = TILE_BG[hash(spId) % TILE_BG.length];
-    return `<div class="tile" style="background:radial-gradient(120% 120% at 20% 10%, ${bg}, #141418)">${esc(initials(speaker(spId).n))}</div>`;
+  // color: a CSS color (usually the talk's topic color); defaults to the speaker's color
+  function speakerArt(spId, color = speakerColor(spId), photo = photoOf(spId)) {
+    if (photo) return `<div class="photo" style="width:100%;height:100%;--c:${color}"><img src="${esc(photo)}" alt="" loading="lazy" decoding="async"></div>`;
+    return `<div class="tile" style="--c:${color}">${esc(initials(speaker(spId).n))}</div>`;
   }
-  function bigArt(spId) {
+  function bigArt(spId, color = speakerColor(spId)) {
     const s = speaker(spId);
-    if (s.photo) return `<div class="photo" style="width:100%;height:100%"><img src="${esc(s.photo)}" alt="Photo of ${esc(s.n)}" decoding="async"></div>`;
-    return `<div class="monogram" role="img" aria-label="${esc(s.n)}">${esc(initials(s.n))}</div>`;
+    if (s.photo) return `<div class="photo" style="width:100%;height:100%;--c:${color}"><img src="${esc(s.photo)}" alt="Photo of ${esc(s.n)}" decoding="async"></div>`;
+    return `<div class="monogram" role="img" aria-label="${esc(s.n)}" style="--c:${color}">${esc(initials(s.n))}</div>`;
   }
 
   // ---- Icons -------------------------------------------------------------
@@ -255,7 +266,7 @@
     const topic = mainTopic(t);
     return `<div class="talk${cur ? " is-current" : ""}${cur && P.playing() ? " is-playing" : ""}${p?.[2] ? " is-done" : ""}" data-id="${esc(id)}">
       <button class="talk__hit" data-play="${esc(id)}" data-ctx="${esc(ctx)}" data-idx="${idx}" aria-label="Play ${esc(t.t)} by ${esc(s.n)}"></button>
-      <span class="talk__art">${speakerArt(t.sp)}<span class="talk__eq">${I.eq}</span></span>
+      <span class="talk__art">${speakerArt(t.sp, talkColor(id))}<span class="talk__eq">${I.eq}</span></span>
       <span class="talk__body">
         <span class="talk__t">${esc(t.t)}</span>
         <span class="talk__s">${esc(s.n)}</span>${topic ? `<span class="talk__tp">${esc(topic)}</span>` : ""}
@@ -271,9 +282,9 @@
   function tallCard(id, ctx, idx) {
     const t = talk(id); if (!t) return "";
     const s = speaker(t.sp);
-    return `<div class="tall" data-id="${esc(id)}">
+    return `<div class="tall" data-id="${esc(id)}" style="--c:${talkColor(id)}">
       <button class="talk__hit" data-play="${esc(id)}" data-ctx="${esc(ctx)}" data-idx="${idx}" aria-label="Play ${esc(t.t)} by ${esc(s.n)}"></button>
-      <span class="tall__art">${speakerArt(t.sp)}<span class="tall__rank">${idx + 1}</span></span>
+      <span class="tall__art">${speakerArt(t.sp, talkColor(id))}<span class="tall__rank">${idx + 1}</span></span>
       <span class="tall__t">${esc(t.t)}</span>
       <span class="tall__s">${esc(s.n)}</span>
       ${acts(id, "acts--row")}
@@ -382,7 +393,7 @@
       <div class="needs">
         ${featured.map((n, i) => needCard(n, D.needs.indexOf(n), i)).join("")}
         <button class="need need--all rise" style="animation-delay:${0.1 + featured.length * 0.04}s" data-go="#/topics" data-track="see-all-topics">
-          ${needArt("all", 6)}<span class="need__n">${String(featured.length + 1).padStart(2, "0")}</span>
+          ${needArt("all")}<span class="need__n">${String(featured.length + 1).padStart(2, "0")}</span>
           <span class="need__t">See all topics</span><span class="need__c">${D.topics.length} topics ${I.right}</span></button>
       </div>
       <div class="section-h"><h2>Most liked</h2></div>
@@ -397,7 +408,7 @@
 
   function needCard(n, artIdx, pos) {
     return `<button class="need rise" style="animation-delay:${0.1 + pos * 0.04}s" data-go="#/need/${n.id}" data-track="need/${n.id}">
-      ${needArt(n.id, artIdx)}<span class="need__n">${String(pos + 1).padStart(2, "0")}</span>
+      ${needArt(n.id)}<span class="need__n">${String(pos + 1).padStart(2, "0")}</span>
       <span class="need__t">${esc(n.title)}</span><span class="need__c">${n.talks.length} talks</span></button>`;
   }
 
@@ -420,7 +431,7 @@
     const ctx = "need:" + id;
     return `
       ${homeBar()}
-      <div class="hero rise">${needArt(n.id, i)}<h1 class="hero__t">${esc(n.title)}</h1></div>
+      <div class="hero rise">${needArt(n.id)}<h1 class="hero__t">${esc(n.title)}</h1></div>
       <div class="page-intro"><p>${esc(n.blurb)}</p><div class="chips">${n.topics.map((t) => `<a class="chip" href="#/topic/${t.id}">${esc(t.n)}</a>`).join("")}</div></div>
       <div class="actions"><button class="btn-primary" data-playall="${ctx}">${I.play(22)} Play all</button><span class="muted">${n.talks.length} talks</span></div>
       <div class="talks">${n.talks.map((t, k) => talkCard(t, ctx, k)).join("")}</div>`;
@@ -438,7 +449,7 @@
       <section class="filter-group" data-group-name="needs">
         <h3 class="list-h">Start where you are</h3>
         <div class="rows">${D.needs.map((n, i) => `<a class="row" href="#/need/${n.id}" data-n="${esc(fold(n.title + " " + n.topics.map((t) => t.n).join(" ")))}">
-            <span class="row__art">${needArt(n.id, i)}</span><span class="row__t">${esc(n.title)}</span><span class="row__c">${n.talks.length}</span>${I.right}</a>`).join("")}</div>
+            <span class="row__art">${needArt(n.id)}</span><span class="row__t">${esc(n.title)}</span><span class="row__c">${n.talks.length}</span>${I.right}</a>`).join("")}</div>
       </section>
       <section class="filter-group">
         <h3 class="list-h">A–Z</h3>
@@ -465,7 +476,7 @@
         <div class="az-list">${letters.map((L) => `<section class="filter-group" id="az-${L}">
             <h3 class="list-h">${L}</h3>
             <div class="rows">${groups[L].map((s) => `<a class="row row--spk" href="#/speaker/${s.id}" data-n="${esc(fold(s.n))}">
-              <span class="row__av">${s.p ? `<span class="photo" style="display:block;width:100%;height:100%"><img src="${esc(s.p)}" alt="" loading="lazy" decoding="async"></span>` : `<span class="tile" style="background:radial-gradient(120% 120% at 20% 10%, ${TILE_BG[hash(s.id) % TILE_BG.length]}, #141418)">${esc(initials(s.n))}</span>`}</span>
+              <span class="row__av">${s.p ? `<span class="photo" style="display:block;width:100%;height:100%;--c:${speakerColor(s.id)}"><img src="${esc(s.p)}" alt="" loading="lazy" decoding="async"></span>` : `<span class="tile" style="--c:${speakerColor(s.id)}">${esc(initials(s.n))}</span>`}</span>
               <span class="row__t">${esc(s.n)}</span><span class="row__c">${s.c.toLocaleString()}</span>${I.right}</a>`).join("")}</div></section>`).join("")}</div>
         <p class="empty" hidden>No speakers match. Try a last name.</p>`;
     });
@@ -540,7 +551,7 @@
       return `
         ${homeBar()}
         <article class="single rise">
-          <div class="single__art">${bigArt(t.sp)}</div>
+          <div class="single__art">${bigArt(t.sp, talkColor(id))}</div>
           <p class="eyebrow">${t.daily ? "Daily Discipleship · 4 min" : esc(mainTopic(t) || "Talk")}</p>
           <h1 class="single__t">${esc(t.t)}</h1>
           <a class="single__s" href="#/speaker/${esc(t.sp)}">${esc(s.n)}</a>
@@ -687,10 +698,12 @@
     function paintMeta(t) {
       const s = speaker(t.sp);
       el.mini.hidden = false;
-      el.miniArt.innerHTML = speakerArt(t.sp);
+      const c = talkColor(t.id);
+      el.miniArt.style.setProperty("--c", c); el.sheet.style.setProperty("--c", c);
+      el.miniArt.innerHTML = speakerArt(t.sp, c);
       el.miniTitle.textContent = t.t;
       el.miniSub.textContent = s.n;
-      el.art.innerHTML = s.photo ? bigArt(t.sp) : `<div class="tile" style="background:radial-gradient(120% 120% at 20% 10%, #5a1a12, #141418)">${esc(initials(s.n))}</div>`;
+      el.art.innerHTML = s.photo ? bigArt(t.sp, c) : `<div class="tile" style="--c:${c}">${esc(initials(s.n))}</div>`;
       el.title.textContent = t.t;
       el.sub.textContent = [s.n, t.se || (t.tp || [])[0]].filter(Boolean).join(" · ");
       el.sum.innerHTML = t.sm ? esc(t.sm) + draftBadge(t.smd) : "";
@@ -710,7 +723,7 @@
       el.upnext.parentElement.hidden = !next.length;
       el.upnext.innerHTML = next.map((id, k) => {
         const t = talk(id); if (!t) return "";
-        return `<li><button data-jump="${idx + 1 + k}"><span class="talk__art">${speakerArt(t.sp)}</span><span><b>${esc(t.t)}</b><span>${esc(speaker(t.sp).n)}</span></span></button></li>`;
+        return `<li><button data-jump="${idx + 1 + k}"><span class="talk__art">${speakerArt(t.sp, talkColor(id))}</span><span><b>${esc(t.t)}</b><span>${esc(speaker(t.sp).n)}</span></span></button></li>`;
       }).join("") + (queue.length - idx - 1 > 5 ? `<li class="muted" style="padding:6px 4px;font-size:14px">+ ${queue.length - idx - 6} more</li>` : "");
     }
 
