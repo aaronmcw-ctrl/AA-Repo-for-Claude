@@ -26,12 +26,12 @@
       for (const L of lib.songs || []) {
         if (hidden.includes(L.id)) continue;
         const s = findSong(L.id);
-        if (!s) songs.push({ ...L, lib: true, libVersion: L.version || 0, sheet: '', offset: 0, transpose: 0, capo: null });
+        if (!s) songs.push({ ...L, lib: true, libVersion: L.version || 0, sheet: '', offset: 0, transpose: 0, capo: L.capo ?? null });
         else if ((L.version || 0) > (s.libVersion || 0)) {
           const mine = s.sheet && s.sheet.trim();
           const newLrc = L.chordMap && (!s.chordMap || s.chordMap.lrclibId !== L.chordMap.lrclibId);
           Object.assign(s, { title: L.title, artist: L.artist, videoId: L.videoId, libVersion: L.version || 0 });
-          if (!mine) { s.chordMap = L.chordMap || null; if (newLrc) { s.lrc = ''; s.offset = 0; } }
+          if (!mine) { s.chordMap = L.chordMap || null; if (L.capo != null) s.capo = L.capo; if (newLrc) { s.lrc = ''; s.offset = 0; } }
         }
       }
       saveSongs();
@@ -48,16 +48,24 @@
   const fmtTime = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   const thumb = (id) => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 
+  // LRCLIB is free and sometimes busy: retry a few times before giving up.
+  async function fetchJSON(u) {
+    for (let i = 0; ; i++) {
+      let r;
+      try { r = await fetch(u); } catch (e) { if (i < 3) { await new Promise((res) => setTimeout(res, 1500 * 2 ** i)); continue; } throw e; }
+      if (r.ok) return r.json();
+      if ((r.status === 503 || r.status === 429 || r.status >= 500) && i < 3) { await new Promise((res) => setTimeout(res, 1500 * 2 ** i)); continue; }
+      throw new Error('LRCLIB ' + r.status);
+    }
+  }
   async function lrclibSearch(title, artist) {
-    const tryUrl = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error('LRCLIB ' + r.status); return r.json(); };
+    const tryUrl = fetchJSON;
     let res = await tryUrl(`https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`);
     if (!res.length) res = await tryUrl(`https://lrclib.net/api/search?q=${encodeURIComponent(title + ' ' + artist)}`);
     return res.filter((r) => r.syncedLyrics).slice(0, 8);
   }
   async function lrclibGet(id) {
-    const r = await fetch(`https://lrclib.net/api/get/${id}`);
-    if (!r.ok) throw new Error('LRCLIB ' + r.status);
-    return r.json();
+    return fetchJSON(`https://lrclib.net/api/get/${id}`);
   }
 
   // ---------- song name from a YouTube link ----------
